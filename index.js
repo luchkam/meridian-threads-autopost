@@ -92,12 +92,24 @@ async function runAssistant(nextId, publishedTitles){
     title = json.title.trim();
   
   } catch (err) {
-    console.warn("⚠️ JSON parse failed, using raw text. Error:", err.message);
-    // fallback — если JSON невалидный, публикуем как есть
-    text = raw.replace(/[\u0000-\u001F]+/g, " ").trim();
+    console.warn("⚠️ JSON parse failed, trying to clean JSON wrapper. Error:", err.message);
+    
+    // Попробуем вырезать поля из JSON даже при невалидности
+    let bodyMatch = raw.match(/"body"\s*:\s*"([^"]+)"/);
+    let titleMatch = raw.match(/"title"\s*:\s*"([^"]+)"/);
+    let ctaMatch = raw.match(/"cta"\s*:\s*"([^"]+)"/);
+    
+    if (bodyMatch || titleMatch || ctaMatch) {
+      text = `${titleMatch ? titleMatch[1] + "\n" : ""}${bodyMatch ? bodyMatch[1] + "\n\n" : ""}${ctaMatch ? ctaMatch[1] : ""}`;
+    } else {
+      text = raw.replace(/[\u0000-\u001F]+/g, " ").trim();
+    }
+  
+    // Ограничение Threads API
     if (text.length > 500) text = text.slice(0, 497) + "...";
+  
     tag = "";
-    title = text.split("\n")[0]?.slice(0, 60) || "Без названия";
+    title = titleMatch ? titleMatch[1].slice(0, 60) : "Без названия";
   }
   
   return { text, title, tag };
