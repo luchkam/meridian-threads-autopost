@@ -77,20 +77,38 @@ async function runAssistant(nextId, publishedTitles){
   const parts = (firstAssistant?.content || []).map(c => c?.text?.value || "").filter(Boolean);
   const raw = parts.join("\n").trim();
 
-  // 6) выдрать JSON (без префиксов, на всякий случай)
-  const start = raw.indexOf("{");
-  const end = raw.lastIndexOf("}");
-  if (start < 0 || end < 0) throw new Error("Assistant output has no JSON");
-  const json = JSON.parse(raw.slice(start, end+1));
-
-  if (json.lang !== "ru" || json.type !== "single") throw new Error("JSON not in required format (ru/single)");
-  if (!json.title || !json.body || !json.cta) throw new Error("Missing fields in JSON");
-
-  // итоговый текст для Threads
-  const text = `${json.title}\n${json.body}\n\n${json.cta}`;
-  const tag = (json.tag || "").trim();
-
-  return { text, title: json.title.trim(), tag };
+  // 6) выдрать JSON с безопасной очисткой и fallback
+  let json, text, tag, title;
+  
+  try {
+    // Очистка от мусора перед парсингом
+    const rawClean = raw
+      .replace(/[\u0000-\u001F]+/g, " ") // удалить control-символы
+      .replace(/[“”]/g, '"')              // заменить “ ” на обычные "
+      .replace(/\\(?!["\\/bfnrtu])/g, "\\\\"); // экранировать невалидные \
+  
+    const start = rawClean.indexOf("{");
+    const end = rawClean.lastIndexOf("}");
+    if (start < 0 || end < 0) throw new Error("Assistant output has no JSON");
+  
+    json = JSON.parse(rawClean.slice(start, end + 1));
+  
+    if (json.lang !== "ru" || json.type !== "single") throw new Error("JSON not in required format (ru/single)");
+    if (!json.title || !json.body || !json.cta) throw new Error("Missing fields in JSON");
+  
+    text = `${json.title}\n${json.body}\n\n${json.cta}`;
+    tag = (json.tag || "").trim();
+    title = json.title.trim();
+  
+  } catch (err) {
+    console.warn("⚠️ JSON parse failed, using raw text. Error:", err.message);
+    // fallback — если JSON невалидный, публикуем как есть
+    text = raw.replace(/[\u0000-\u001F]+/g, " ").trim();
+    tag = "";
+    title = text.split("\n")[0]?.slice(0, 60) || "Без названия";
+  }
+  
+  return { text, title, tag };
 }
 
 // ===== Threads publish (TEXT, auto publish) =====
