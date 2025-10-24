@@ -51,7 +51,7 @@ async function runAssistant(nextId, publishedTitles){
   const msg = [
     `Сгенерируй ОДИН пост для Threads турагентства Меридиан строго в JSON.`,
     `Только текст (type="single"), без ссылок, без цен и без упоминаний конкурентов РК.`,
-    `Структура: {"lang":"ru","type":"single","title":"<=60","body":"<=500 и вопрос в конце","tag":"один tag без #","cta":"Напишите в ДМ слово “БРОНЬ”…"}.`,
+    `Структура: {"lang":"ru","type":"single","title":"<=60","body":"<=450 и вопрос в конце","tag":"один tag без #","cta":"Напишите в ДМ слово “БРОНЬ”…"}.`,
     `Анти-повторы: запрещено повторять заголовки из: ${ (publishedTitles||[]).slice(-100).join(" | ") || "—" }.`,
     `next_id=${nextId}.`
   ].join(" ");
@@ -86,6 +86,8 @@ async function runAssistant(nextId, publishedTitles){
       .replace(/[\u0000-\u001F]+/g, " ") // удалить control-символы
       .replace(/[“”]/g, '"')              // заменить “ ” на обычные "
       .replace(/\\(?!["\\/bfnrtu])/g, "\\\\"); // экранировать невалидные \
+
+    console.log("=== RAW ASSISTANT OUTPUT ===\n", raw, "\n==========================");
   
     const start = rawClean.indexOf("{");
     const end = rawClean.lastIndexOf("}");
