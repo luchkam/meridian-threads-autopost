@@ -47,17 +47,6 @@ async function runAssistant(nextId, publishedTitles){
   const thread = await OA.post("/threads", {});
   const thread_id = thread.data.id;
 
-  // 2) user message: просим 1 пост в строгом JSON (RU, без цен, без конкурентов)
-  const msg = [
-    `Сгенерируй ОДИН пост для Threads турагентства Меридиан строго в JSON.`,
-    `Только текст (type="single"), без ссылок, без цен и без упоминаний конкурентов РК.`,
-    `Структура: {"lang":"ru","type":"single","title":"<=60","body":"<=450 и вопрос в конце","tag":"один tag без #","cta":"Напишите в ДМ слово “БРОНЬ”…"}.`,
-    `Анти-повторы: запрещено повторять заголовки из: ${ (publishedTitles||[]).slice(-100).join(" | ") || "—" }.`,
-    `next_id=${nextId}.`
-  ].join(" ");
-
-  await OA.post(`/threads/${thread_id}/messages`, { role: "user", content: msg });
-
   // 3) запустить run
   const run = await OA.post(`/threads/${thread_id}/runs`, { assistant_id: ASSISTANT_ID });
   const run_id = run.data.id;
