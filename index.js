@@ -104,6 +104,7 @@ async function runAssistant(nextId, publishedTitles){
     console.warn("⚠️ JSON parse failed, using raw text. Error:", err.message);
     // fallback — если JSON невалидный, публикуем как есть
     text = raw.replace(/[\u0000-\u001F]+/g, " ").trim();
+    if (text.length > 500) text = text.slice(0, 497) + "...";
     tag = "";
     title = text.split("\n")[0]?.slice(0, 60) || "Без названия";
   }
@@ -116,6 +117,11 @@ async function postToThreads({ text, tag }){
   const url = "https://graph.threads.net/me/threads";
   // Параметры как в офиц. Postman коллекции: media_type=TEXT, auto_publish_text=true, reply_control, topic_tag
   // Авторизация — Bearer USER ACCESS TOKEN
+  // Threads API ограничивает text <= 500 символов
+  if (text.length > 500) {
+    console.warn(`⚠️ Text too long (${text.length} chars) — trimming to 500`);
+    text = text.slice(0, 497) + "...";
+  }
   const resp = await axios.post(url, null, {
     headers: {
       "Authorization": `Bearer ${THREADS_USER_ACCESS_TOKEN}`,
