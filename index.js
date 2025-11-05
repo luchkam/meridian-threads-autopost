@@ -42,10 +42,27 @@ const OA = axios.create({
   timeout: 60000
 });
 
-async function runAssistant(nextId, publishedTitles){
+async function runAssistant(nextId, publishedTitles, todayTopicIndex){
   // 1) создать thread
   const thread = await OA.post("/threads", {});
   const thread_id = thread.data.id;
+
+  // 2) передать ассистенту тему дня и антиповторы заголовков
+  const banned = (publishedTitles || []).slice(-50);
+  const userMsgParts = [];
+
+  userMsgParts.push(`Сегодня используй тему с номером ${todayTopicIndex} из списка тем в инструкциях.`);
+
+  if (banned.length > 0) {
+    userMsgParts.push(
+      `Не используй дословно заголовки из списка: ${banned.join(" | ")}. Заголовок должен отличаться по формулировке.`
+    );
+  }
+
+  await OA.post(`/threads/${thread_id}/messages`, {
+    role: "user",
+    content: userMsgParts.join(" ")
+  });
 
   // 3) запустить run
   const run = await OA.post(`/threads/${thread_id}/runs`, { assistant_id: ASSISTANT_ID });
@@ -147,8 +164,15 @@ async function postToThreads({ text, tag }){
   console.log("▶️ Start Meridian Threads autopost…");
   const state = await loadState(); // { last_id, published_titles }
   const nextId = (state.last_id ?? 0) + 1;
+  const topicIndex = (state.topic_index ?? 0) + 1;
+  const topicMax = 30; // у тебя 30 тем в списке
+  const todayTopicIndex = ((topicIndex - 1) % topicMax) + 1; // 1..30 по кругу
 
-  const { text, title, tag } = await runAssistant(nextId, state.published_titles || []);
+  const { text, title, tag } = await runAssistant(
+    nextId,
+    state.published_titles || [],
+    todayTopicIndex
+  );
 
   if (state.published_titles?.includes(title)) {
     throw new Error(`Title already published earlier: "${title}"`);
@@ -164,7 +188,11 @@ async function postToThreads({ text, tag }){
   const published = Array.isArray(state.published_titles) ? state.published_titles : [];
   if (title && !published.includes(title)) published.push(title);
 
-  await saveState({ last_id: nextId, published_titles: published.slice(-500) });
+  await saveState({
+    last_id: nextId,
+    published_titles: published.slice(-500),
+    topic_index: topicIndex
+  });
   console.log("💾 State saved. Done.");
 })().catch(err => {
   console.error("❌ Fatal:", err?.response?.data || err.message || err);
