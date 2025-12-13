@@ -51,18 +51,18 @@ async function runAssistant(nextId, publishedTitles, todayTopicIndex){
   const banned = (publishedTitles || []).slice(-50);
   const userMsgParts = [];
 
-  userMsgParts.push(`Сегодня используй тему с номером ${todayTopicIndex} из списка тем в инструкциях.`);
-
   if (banned.length > 0) {
     userMsgParts.push(
       `Не используй дословно заголовки из списка: ${banned.join(" | ")}. Заголовок должен отличаться по формулировке.`
     );
   }
 
-  await OA.post(`/threads/${thread_id}/messages`, {
-    role: "user",
-    content: userMsgParts.join(" ")
-  });
+  if (userMsgParts.length) {
+    await OA.post(`/threads/${thread_id}/messages`, {
+      role: "user",
+      content: userMsgParts.join(" ")
+    });
+  }
 
   // 3) запустить run
   const run = await OA.post(`/threads/${thread_id}/runs`, { assistant_id: ASSISTANT_ID });
